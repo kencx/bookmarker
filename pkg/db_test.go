@@ -1,4 +1,4 @@
-package main
+package pkg
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ const (
 
 var (
 	s             *Storage
-	testBookmark  = Bookmark{name: "google", url: "google.com"}
-	testBookmark2 = Bookmark{name: "reddit", url: "reddit.com"}
+	testBookmark  = Bookmark{Name: "google", Url: "google.com"}
+	testBookmark2 = Bookmark{Name: "reddit", Url: "reddit.com"}
 	testList      = []Bookmark{testBookmark, testBookmark2}
 )
 
@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 
 func run(m *testing.M) (int, error) {
 
-	db, err := newDB(path)
+	db, err := NewDB(path)
 	if err != nil {
 		return -1, fmt.Errorf("could not connect to database: %w", err)
 	}
@@ -36,12 +36,12 @@ func run(m *testing.M) (int, error) {
 		db.Exec("DROP TABLE bookmarks")
 		db.Close()
 	}()
-	s = &Storage{db: db}
+	s = &Storage{Db: db}
 	return m.Run(), nil
 }
 
 func TestConnection(t *testing.T) {
-	if err := s.db.Ping(); err != nil {
+	if err := s.Db.Ping(); err != nil {
 		t.Errorf("database connection failed: %v", err)
 	}
 }
@@ -169,7 +169,7 @@ func TestDeleteAllBookmarks(t *testing.T) {
 func TestUpdateBookmark(t *testing.T) {
 
 	id := seedOne(t)
-	newTestBookmark := &Bookmark{name: "google search", url: "google.com"}
+	newTestBookmark := &Bookmark{Name: "google search", Url: "google.com"}
 	rows, err := s.UpdateBookmark(id, newTestBookmark)
 	if err != nil {
 		t.Fatalf("UpdateBookmark failed: %v", err)
@@ -239,10 +239,10 @@ func assertEquals(t testing.TB, got int, want int) {
 
 func assertBookmarkEquals(t testing.TB, got Bookmark, want Bookmark) {
 	t.Helper()
-	if got.name != want.name {
-		t.Errorf("got %q, want %q", got.name, want.name)
+	if got.Name != want.Name {
+		t.Errorf("got %q, want %q", got.Name, want.Name)
 	}
-	if got.url != want.url {
-		t.Errorf("got %q, want %q", got.url, want.url)
+	if got.Url != want.Url {
+		t.Errorf("got %q, want %q", got.Url, want.Url)
 	}
 }
