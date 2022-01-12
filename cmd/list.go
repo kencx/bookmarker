@@ -1,7 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
@@ -14,10 +10,11 @@ import (
 // listCmd represents the list command
 var result string
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List bookmarks",
-	Long:  ``,
-	RunE:  list,
+	Use:     "list [-j, --json]",
+	Short:   "List bookmarks",
+	Long:    ``,
+	Example: "bookmarker list -j",
+	RunE:    list,
 }
 
 func list(cmd *cobra.Command, args []string) error {

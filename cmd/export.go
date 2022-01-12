@@ -1,7 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
@@ -13,10 +9,12 @@ import (
 
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
-	Use:   "export",
-	Short: "Export all bookmarks to file",
-	Long:  ``,
-	RunE:  Export,
+	Use:     "export [-j, --json] filename",
+	Short:   "Export all bookmarks to file",
+	Long:    ``,
+	Example: "bookmarker export -j bookmarks.json",
+	Args:    cobra.MinimumNArgs(1),
+	RunE:    Export,
 }
 
 func Export(cmd *cobra.Command, args []string) error {
@@ -32,18 +30,18 @@ func Export(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	jsonName, _ := cmd.Flags().GetString("json")
-	outputPath := fmt.Sprintf("./%s", jsonName)
+	jsonFileName, _ := cmd.Flags().GetString("json")
 
-	if jsonName != "" {
+	if jsonFileName != "" {
+		outputPath := fmt.Sprintf("./%s", jsonFileName)
 		if err = pkg.ExportToJSON(bList, outputPath); err != nil {
 			return err
 		}
-	}
-
-	// export to text by default
-	if err = pkg.ExportToText(bList, "./output"); err != nil {
-		return err
+	} else {
+		outputPath := fmt.Sprintf("./%s", args[0])
+		if err = pkg.ExportToText(bList, outputPath); err != nil {
+			return err
+		}
 	}
 	return nil
 }

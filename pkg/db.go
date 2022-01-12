@@ -228,6 +228,10 @@ func (b *Bookmark) OpenBookmark() error {
 	return nil
 }
 
+func GetNameFromUrl(url string) (string, error) {
+	return "", nil
+}
+
 func ToText(bList []Bookmark) (string, error) {
 	var sb strings.Builder
 

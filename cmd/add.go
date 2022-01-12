@@ -11,14 +11,20 @@ import (
 
 const url_regexp = `[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)`
 
+var bm *pkg.Bookmark
 var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Add new bookmark",
-	Args:  validate_add,
-	RunE:  add,
+	Use:     "add url [-n] name",
+	Short:   "Add new bookmark",
+	Example: "bookmarker add google.com -n google",
+	Args:    validateAdd,
+	RunE:    add,
 }
 
-func validate_add(cmd *cobra.Command, args []string) error {
+func validateAdd(cmd *cobra.Command, args []string) error {
+
+	if len(args) < 1 {
+		return errors.New("missing url")
+	}
 
 	// url validation
 	re := regexp.MustCompile(url_regexp)
@@ -33,11 +39,16 @@ func validate_add(cmd *cobra.Command, args []string) error {
 
 func add(cmd *cobra.Command, args []string) error {
 
-	if len(args) < 2 {
-		return errors.New("missing name and/or url")
+	bmName, _ := cmd.Flags().GetString("name")
+	if bmName != "" {
+		bm = &pkg.Bookmark{Url: args[0], Name: args[1]}
+	} else {
+		name, err := pkg.GetNameFromUrl(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to get name from url: %w", err)
+		}
+		bm = &pkg.Bookmark{Url: args[0], Name: name}
 	}
-
-	bm := &pkg.Bookmark{Url: args[0], Name: args[1]}
 
 	db, err := pkg.NewDB("bm.db")
 	if err != nil {
