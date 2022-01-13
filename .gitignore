@@ -1,4 +1,8 @@
 *.db
 *.json
+*.html
+*.md
+!README.md
+
 bookmarker
 output*

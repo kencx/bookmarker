@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	path = "./bm.db"
+	path = "../bm.db"
 )
 
 var (
@@ -52,10 +52,21 @@ func TestAddBookmark(t *testing.T) {
 
 		got, err := s.AddBookmark(&testBookmark)
 		if err != nil {
-			t.Errorf("unexpected error in AddBookmark: %v", err)
+			t.Errorf("unexpected error: %v", err)
 		}
 		assertEquals(t, got, 1)
 		teardown(t)
+	})
+
+	t.Run("Add existing bookmark", func(t *testing.T) {
+		seedOne(t)
+		got, err := s.AddBookmark(&testBookmark)
+		if err == nil {
+			t.Errorf("expected error: %v", err)
+		}
+		assertEquals(t, got, -1)
+		teardown(t)
+
 	})
 }
 
@@ -66,7 +77,7 @@ func TestGetAllBookmarks(t *testing.T) {
 		seedMultiple(t)
 		bList, err := s.GetAllBookmarks()
 		if err != nil {
-			t.Fatalf("GetAllBookmarks failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 
 		assertEquals(t, len(bList), len(testList))
@@ -83,7 +94,7 @@ func TestGetBookmarkById(t *testing.T) {
 		id := seedOne(t)
 		got, err := s.GetBookmarkById(id)
 		if err != nil {
-			t.Fatalf("GetBookmarkById failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		want := testBookmark
 		assertBookmarkEquals(t, got, want)
@@ -93,11 +104,11 @@ func TestGetBookmarkById(t *testing.T) {
 	t.Run("get non-existent bookmark", func(t *testing.T) {
 		got, err := s.GetBookmarkById(1000)
 		if err != nil {
-			t.Fatalf("GetBookmarkById failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		want := Bookmark{}
 		if got != want {
-			t.Fatalf("non-existent bookmark found: %q", got)
+			t.Fatalf("got %q, want %q", got, want)
 		}
 	})
 }
@@ -107,7 +118,7 @@ func TestDeleteBookmark(t *testing.T) {
 		id := seedOne(t)
 		rows, err := s.DeleteBookmark(id)
 		if err != nil {
-			t.Fatalf("DeleteBookmark failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if rows != 1 {
 			t.Fatalf("wrong number of bookmarks deleted: %d/1", rows)
@@ -119,14 +130,14 @@ func TestDeleteBookmark(t *testing.T) {
 		idList := seedMultiple(t)
 		rows, err := s.DeleteBookmark(idList[0])
 		if err != nil {
-			t.Fatalf("DeleteBookmark failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if rows != 1 {
 			t.Fatalf("wrong number of bookmarks deleted: %d/1", rows)
 		}
 		bList, err := s.GetAllBookmarks()
 		if err != nil {
-			t.Errorf("get bookmarks failed: %v", err)
+			t.Errorf("unexpected error: %v", err)
 		}
 		if len(bList) != len(idList)-1 {
 			t.Fatalf("wrong number of bookmarks remaining: %d/%d", len(bList), len(idList)-1)
@@ -137,7 +148,7 @@ func TestDeleteBookmark(t *testing.T) {
 	t.Run("delete non-existent bookmark", func(t *testing.T) {
 		rows, err := s.DeleteBookmark(1000)
 		if err != nil {
-			t.Fatalf("DeleteBookmark failed: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if rows != 0 {
 			t.Fatalf("wrong number of bookmarks deleted: %d/0", rows)
@@ -151,14 +162,14 @@ func TestDeleteAllBookmarks(t *testing.T) {
 	idList := seedMultiple(t)
 	rows, err := s.DeleteAllBookmarks()
 	if err != nil {
-		t.Fatalf("DeleteAllBookmarks failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if int(rows) != len(idList) {
 		t.Fatalf("wrong number of bookmarks deleted: %d/%d", int(rows), len(idList))
 	}
 	bList, err := s.GetAllBookmarks()
 	if err != nil {
-		t.Errorf("get bookmarks failed: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if len(bList) != 0 {
 		t.Fatalf("wrong number of bookmarks remaining: %d/0", len(bList))
@@ -172,14 +183,14 @@ func TestUpdateBookmark(t *testing.T) {
 	newTestBookmark := &Bookmark{Name: "google search", Url: "google.com"}
 	rows, err := s.UpdateBookmark(id, newTestBookmark)
 	if err != nil {
-		t.Fatalf("UpdateBookmark failed: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if rows != 1 {
 		t.Fatalf("wrong number of bookmarks updated: %d/1", rows)
 	}
 	b, err := s.GetBookmarkById(id)
 	if err != nil {
-		t.Errorf("get bookmarks failed: %v", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	assertBookmarkEquals(t, b, *newTestBookmark)
 	teardown(t)
@@ -225,7 +236,7 @@ func teardown(t testing.TB) {
 	t.Helper()
 	t.Cleanup(func() {
 		if _, err := s.DeleteAllBookmarks(); err != nil {
-			t.Fatalf("cleanup failed: %v", err)
+			t.Fatalf("teardown failed: %v", err)
 		}
 	})
 }

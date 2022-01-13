@@ -2,22 +2,28 @@ package cmd
 
 import (
 	"bookmarker/pkg"
+	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
-	Use:     "export [-j, --json] filename",
+	Use:     "export filename",
 	Short:   "Export all bookmarks to file",
-	Long:    ``,
-	Example: "bookmarker export -j bookmarks.json",
+	Long:    `Export all bookmarks to file with given extension.`,
+	Example: "bookmarker export bookmarks[.json|.html|.md]",
 	Args:    cobra.MinimumNArgs(1),
 	RunE:    Export,
 }
 
 func Export(cmd *cobra.Command, args []string) error {
+
+	if err := validateExtension(args[0]); err != nil {
+		return err
+	}
 
 	db, err := pkg.NewDB("bm.db") // TODO: replace with default path
 	if err != nil {
@@ -29,19 +35,29 @@ func Export(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if len(bList) == 0 {
+		return errors.New("no bookmarks found")
+	}
 
-	jsonFileName, _ := cmd.Flags().GetString("json")
+	filename := args[0]
+	extension := filepath.Ext(filename)
+	if err = pkg.ExportBookmarks(bList, filename, extension); err != nil {
+		return err
+	}
+	return nil
+}
 
-	if jsonFileName != "" {
-		outputPath := fmt.Sprintf("./%s", jsonFileName)
-		if err = pkg.ExportToJSON(bList, outputPath); err != nil {
-			return err
-		}
-	} else {
-		outputPath := fmt.Sprintf("./%s", args[0])
-		if err = pkg.ExportToText(bList, outputPath); err != nil {
-			return err
-		}
+func validateExtension(filename string) error {
+	extension := filepath.Ext(filename)
+	extMap := map[string]bool{
+		".json": true,
+		".md":   true,
+		".html": true,
+		"":      true,
+	}
+
+	if !extMap[extension] {
+		return fmt.Errorf("invalid extension: %s", extension)
 	}
 	return nil
 }

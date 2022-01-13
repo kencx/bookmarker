@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bookmarker/pkg"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -29,10 +30,20 @@ func list(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if len(bList) == 0 {
+		return errors.New("no bookmarks found")
+	}
 
 	printJson, _ := cmd.Flags().GetBool("json")
+	printMd, _ := cmd.Flags().GetBool("md")
 	if printJson {
 		json, err := pkg.ToJSON(bList)
+		result = string(json)
+		if err != nil {
+			return err
+		}
+	} else if printMd {
+		json, err := pkg.ToMarkdown(bList)
 		result = string(json)
 		if err != nil {
 			return err

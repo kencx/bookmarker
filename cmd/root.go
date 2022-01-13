@@ -35,6 +35,5 @@ func init() {
 	addCmd.Flags().StringP("name", "n", "", "Name of bookmark")
 
 	listCmd.Flags().BoolP("json", "j", false, "List in JSON format")
-
-	exportCmd.Flags().StringP("json", "j", "", "Export to JSON file")
+	listCmd.Flags().BoolP("md", "m", false, "List in Markdown format")
 }

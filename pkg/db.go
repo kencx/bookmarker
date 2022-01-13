@@ -47,12 +47,12 @@ func createTable(db *sql.DB) error {
 	stmt := `CREATE TABLE IF NOT EXISTS bookmarks (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
-		url TEXT NOT NULL
+		url TEXT NOT NULL UNIQUE
 	);`
 
 	_, err := db.Exec(stmt)
 	if err != nil {
-		return fmt.Errorf("failed to create table bookmarks: %w", err)
+		return fmt.Errorf("create table bookmarks failed: %w", err)
 	}
 	return nil
 }
@@ -67,7 +67,7 @@ func (s *Storage) AddBookmark(b *Bookmark) (int, error) {
 
 	res, err := stmt.Exec(b.Name, b.Url)
 	if err != nil {
-		return -1, fmt.Errorf("failed to add row: %w", err)
+		return -1, fmt.Errorf("add row failed: %w", err)
 	}
 
 	lastId, err := res.LastInsertId()
@@ -81,24 +81,26 @@ func (s *Storage) AddBookmark(b *Bookmark) (int, error) {
 
 func (s *Storage) GetBookmarkById(id int) (Bookmark, error) {
 
-	stmt, err := s.Db.Prepare("SELECT id, name, url FROM bookmarks WHERE id = ?")
+	stmt, err := s.Db.Prepare("SELECT * FROM bookmarks WHERE id = ?")
 	if err != nil {
 		return Bookmark{}, fmt.Errorf("prepare stmt failed: %w", err)
 	}
 	defer stmt.Close()
 
 	var b Bookmark
-	if err = stmt.QueryRow(id).Scan(&b.Id, &b.Name, &b.Url); err != nil {
-		if err != sql.ErrNoRows {
-			return Bookmark{}, fmt.Errorf("failed to query row: %w", err)
-		}
+	err = stmt.QueryRow(id).Scan(&b.Id, &b.Name, &b.Url)
+	if err == sql.ErrNoRows {
+		return Bookmark{}, nil
+	} else if err != nil {
+		return Bookmark{}, fmt.Errorf("query row failed: %w", err)
 	}
+
 	return b, nil
 }
 
 func (s *Storage) GetAllBookmarks() ([]Bookmark, error) {
 
-	stmt, err := s.Db.Prepare("SELECT name, url FROM bookmarks")
+	stmt, err := s.Db.Prepare("SELECT * FROM bookmarks")
 	if err != nil {
 		return nil, fmt.Errorf("prepare stmt failed: %w", err)
 	}
@@ -106,21 +108,21 @@ func (s *Storage) GetAllBookmarks() ([]Bookmark, error) {
 
 	rows, err := stmt.Query()
 	if err != nil {
-		return nil, fmt.Errorf("failed to query row: %w", err)
+		return nil, fmt.Errorf("query row failed: %w", err)
 	}
 	defer rows.Close()
 
 	var bList []Bookmark
 	for rows.Next() {
 		var b Bookmark
-		if err = rows.Scan(&b.Name, &b.Url); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+		if err = rows.Scan(&b.Id, &b.Name, &b.Url); err != nil {
+			return nil, fmt.Errorf("scan row failed: %w", err)
 		}
 		bList = append(bList, b)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to scan rows: %w", err)
+		return nil, fmt.Errorf("scan rows failed: %w", err)
 	}
 	return bList, nil
 }
@@ -135,7 +137,7 @@ func (s *Storage) DeleteBookmark(id int) (int64, error) {
 
 	res, err := stmt.Exec(id)
 	if err != nil {
-		return -1, fmt.Errorf("failed to delete row: %w", err)
+		return -1, fmt.Errorf("delete row failed: %w", err)
 	}
 	log.Printf("bookmark deleted successfully")
 	return res.RowsAffected()
@@ -144,7 +146,7 @@ func (s *Storage) DeleteBookmark(id int) (int64, error) {
 func (s *Storage) DeleteAllBookmarks() (int64, error) {
 	res, err := s.Db.Exec("DELETE FROM bookmarks")
 	if err != nil {
-		return -1, fmt.Errorf("failed to delete all bookmarks: %w", err)
+		return -1, fmt.Errorf("delete all bookmarks failed: %w", err)
 	}
 	log.Printf("dropped bookmarks table successfully")
 	return res.RowsAffected()
@@ -160,7 +162,7 @@ func (s *Storage) UpdateBookmark(id int, b *Bookmark) (int64, error) {
 
 	res, err := stmt.Exec(b.Name, b.Url, id)
 	if err != nil {
-		return -1, fmt.Errorf("failed to update row: %w", err)
+		return -1, fmt.Errorf("update row failed: %w", err)
 	}
 	log.Printf("bookmark %d updated successfully", id)
 	return res.RowsAffected()
@@ -236,8 +238,9 @@ func ToText(bList []Bookmark) (string, error) {
 	var sb strings.Builder
 
 	for _, b := range bList {
-		temp := fmt.Sprintf("%d. %s - %s\n", b.Id, b.Name, b.Url)
-		_, err := sb.WriteString(temp)
+		row := fmt.Sprintf("%d. %s - %s\n", b.Id, b.Name, b.Url)
+
+		_, err := sb.WriteString(row)
 		if err != nil {
 			return "", fmt.Errorf("could not parse output: %w", err)
 		}
@@ -254,29 +257,46 @@ func ToJSON(bList []Bookmark) ([]byte, error) {
 	return result, nil
 }
 
-func ExportToText(bList []Bookmark, path string) error {
-	result, err := ToText(bList)
-	if err != nil {
-		return err
-	}
-	err = os.WriteFile(path, []byte(result), 0700)
-	if err != nil {
-		return fmt.Errorf("failed to write to file: %w", err)
-	}
-	return nil
+func ToMarkdown(bList []Bookmark) (string, error) {
+	var sb strings.Builder
 
+	for _, b := range bList {
+		row := fmt.Sprintf("- [%s](%s)\n", b.Name, b.Url) // TODO default name if empty
+		_, err := sb.WriteString(row)
+		if err != nil {
+			return "", fmt.Errorf("could not parse output: %w", err)
+		}
+	}
+	return sb.String(), nil
 }
 
-func ExportToJSON(bList []Bookmark, path string) error {
-	result, err := ToJSON(bList)
-	if err != nil {
-		return err
+func ExportBookmarks(bList []Bookmark, path string, format string) error {
+	var result []byte
+	var err error
+
+	switch format {
+	case ".json":
+		result, err = ToJSON(bList)
+		if err != nil {
+			return err
+		}
+	case ".md":
+		temp, err := ToMarkdown(bList)
+		if err != nil {
+			return err
+		}
+		result = []byte(temp)
+	default:
+		temp, err := ToText(bList)
+		if err != nil {
+			return err
+		}
+		result = []byte(temp)
 	}
 
-	path = fmt.Sprintf("%s.json", path)
 	err = os.WriteFile(path, result, 0700)
 	if err != nil {
-		return fmt.Errorf("failed to write to file: %w", err)
+		return fmt.Errorf("failed to write file: %w", err)
 	}
 	return nil
 }
