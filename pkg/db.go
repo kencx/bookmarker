@@ -6,12 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
+	"github.com/PuerkitoBio/goquery"
+	"github.com/mattn/go-sqlite3"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -67,7 +71,13 @@ func (s *Storage) AddBookmark(b *Bookmark) (int, error) {
 
 	res, err := stmt.Exec(b.Name, b.Url)
 	if err != nil {
-		return -1, fmt.Errorf("add row failed: %w", err)
+		if sqlite3Err, ok := err.(sqlite3.Error); ok {
+			if sqlite3Err.Code == sqlite3.ErrConstraint && sqlite3Err.ExtendedCode == sqlite3.ErrConstraintUnique {
+				return -1, fmt.Errorf("url already exists: %s", b.Url)
+			}
+		} else {
+			return -1, fmt.Errorf("add row failed: %w", err)
+		}
 	}
 
 	lastId, err := res.LastInsertId()
@@ -231,7 +241,29 @@ func (b *Bookmark) OpenBookmark() error {
 }
 
 func GetNameFromUrl(url string) (string, error) {
-	return "", nil
+
+	getTime := time.Now()
+	var title string
+
+	client := &http.Client{Timeout: time.Second * 10}
+	resp, err := client.Get(url)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to get url: %w", err)
+	}
+	defer resp.Body.Close()
+	elapsed := time.Since(getTime)
+	log.Printf("HTTP get took %s", elapsed)
+
+	if resp.StatusCode == http.StatusOK {
+		doc, err := goquery.NewDocumentFromResponse(resp)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse response: %w", err)
+		}
+		title = doc.Find("title").Text()
+		return title, nil
+	}
+	return "", errors.New("title not found")
 }
 
 func ToText(bList []Bookmark) (string, error) {

@@ -26,14 +26,12 @@ func validateAdd(cmd *cobra.Command, args []string) error {
 		return errors.New("missing url")
 	}
 
-	// url validation
+	// url validation for common urls - http://google.com https://google.com
 	re := regexp.MustCompile(url_regexp)
 	match := re.MatchString(args[0])
 	if !match {
 		return fmt.Errorf("invalid url format: %s", args[0])
 	}
-
-	// check if url already exists in db
 	return nil
 }
 
@@ -41,13 +39,9 @@ func add(cmd *cobra.Command, args []string) error {
 
 	bmName, _ := cmd.Flags().GetString("name")
 	if bmName != "" {
-		bm = &pkg.Bookmark{Url: args[0], Name: args[1]}
+		bm = &pkg.Bookmark{Url: args[0], Name: bmName}
 	} else {
-		name, err := pkg.GetNameFromUrl(args[0])
-		if err != nil {
-			return fmt.Errorf("failed to get name from url: %w", err)
-		}
-		bm = &pkg.Bookmark{Url: args[0], Name: name}
+		bm = &pkg.Bookmark{Url: args[0], Name: "Untitled"}
 	}
 
 	db, err := pkg.NewDB("bm.db")

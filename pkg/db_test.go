@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	path = "../bm.db"
+	path = "./bm.db"
 )
 
 var (
@@ -208,6 +208,18 @@ func TestGetBaseDir(t *testing.T) {
 			t.Fatalf("got %q, want %q", got, want)
 		}
 	})
+}
+
+func TestGetNameFromUrl(t *testing.T) {
+	testUrl := "https://google.com"
+	got, err := GetNameFromUrl(testUrl)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "Google"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
 }
 
 func seedOne(t testing.TB) int {
